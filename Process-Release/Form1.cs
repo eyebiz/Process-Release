@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -9,13 +8,15 @@ namespace Process_Release
 {
     public partial class Form1 : Form
     {
-        string[] extensions = new[] { ".m3u", ".nfo", ".sfv" }, lines, subFolders;
+        string[] extensions = new[] { ".m3u", ".nfo", ".sfv" }, subFolders;
         Thread backgroundThread;
 
         public Form1()
         {
             InitializeComponent();
         }
+
+        public delegate void UpdateUI();
 
         private void btnBrowse_Click(object sender, EventArgs e)
         {
@@ -47,42 +48,42 @@ namespace Process_Release
 
         private void btnProcess_Click(object sender, EventArgs e)
         {
-            setStatus("Processing...", true);
+            Invoke(new UpdateUI(() => setStatus("Processing...", true)));
             try
             {
-                backgroundThread = new Thread(
-                new ThreadStart(() =>
+                if (subFolders.Length == 0)
                 {
-                    if (subFolders.Length == 0)
+                    DirectoryInfo di = new DirectoryInfo(tbFolder.Text);
+                    FileInfo[] files = di.EnumerateFiles().Where(f => extensions.Contains(f.Extension.ToLower())).ToArray();
+                        
+
+                    foreach (FileInfo file in files)
                     {
-                        DirectoryInfo di = new DirectoryInfo(tbFolder.Text);
+                        Program.ProcessFile(file.FullName, tbFolder.Text);
+
+                        //backgroundThread = new Thread(() => Program.ProcessFile(file.FullName, tbFolder.Text));
+                        //backgroundThread.Start();
+                    }
+                }
+                else
+                {
+                    foreach (string folder in subFolders)
+                    {
+                        DirectoryInfo di = new DirectoryInfo(folder);
                         FileInfo[] files = di.EnumerateFiles().Where(f => extensions.Contains(f.Extension.ToLower())).ToArray();
+                        // MessageBox.Show(files[0].ToString() + files[1].ToString() + files[2].ToString());
 
                         foreach (FileInfo file in files)
                         {
-                            ProcessFile(file.FullName);
-                        }
-                    }
-                    else
-                    {
-                        foreach (string folder in subFolders)
-                        {
-                            DirectoryInfo di = new DirectoryInfo(folder);
-                            FileInfo[] files = di.EnumerateFiles().Where(f => extensions.Contains(f.Extension.ToLower())).ToArray();
-                            // MessageBox.Show(files[0].ToString() + files[1].ToString() + files[2].ToString());
+                            Program.ProcessFile(file.FullName, tbFolder.Text);
 
-                            foreach (FileInfo file in files)
-                            {
-                                ProcessFile(file.FullName);
-                            }
+                            //backgroundThread = new Thread(() => Program.ProcessFile(file.FullName, tbFolder.Text));
+                            //backgroundThread.Start();
                         }
                     }
-                    this.BeginInvoke(new Action(() => { setStatus("Idle.", false); }));
                 }
-                ));
-                    backgroundThread.IsBackground = true;
-                    backgroundThread.Name = "Process";
-                    backgroundThread.Start();
+                Invoke(new UpdateUI(() => setStatus("Idle.", false)));
+
             }
             catch (Exception ex)
             {
@@ -90,22 +91,7 @@ namespace Process_Release
             }
         }
 
-        private void ProcessFile(string fileName)
-        {
-            using (StreamWriter w = File.AppendText(tbFolder.Text + @"\log.txt"))
-            {
-                lines = File.ReadAllLines(fileName, Encoding.GetEncoding(28591));
-                File.Delete(fileName);
-                File.WriteAllLines(fileName, lines, Encoding.GetEncoding(28591));
-                Log("- File " + fileName + " corrected.", w);
-            }
-        }
 
-        private static void Log(string logMessage, TextWriter w)
-        {
-            w.Write("\rLog Entry: ");
-            w.WriteLine("{0} {1} {2}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString(), logMessage);
-        }
 
         private void setStatus(string status, bool disableUI)
         {
