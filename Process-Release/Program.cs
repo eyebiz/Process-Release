@@ -23,6 +23,7 @@ namespace Process_Release
             using (StreamWriter w = File.AppendText(folderForLogFile + @"\log.txt"))
             {
                 string[] lines = File.ReadAllLines(fileName, Encoding.GetEncoding(28591));
+                File.SetAttributes(fileName, FileAttributes.Normal);
                 File.Delete(fileName);
                 File.WriteAllLines(fileName, lines, Encoding.GetEncoding(28591));
                 Log("- File " + fileName + " corrected.", w);
